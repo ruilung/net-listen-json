@@ -4,33 +4,35 @@ import os
 import sys
 
 def get_netlisten():
-    exclude_list=[]
+    system = platform.system()
+    exclude_list = []
     if len(sys.argv) > 1:
         for i in sys.argv[1:]:
             exclude_list.append(i.split('-'))
-        #print exclude_list
+    # print exclude_list
 
-    system=platform.system()
-    lst=[]
-    rlst=[]
+    ipv4_listen_portlist = []
+    ipv6_listen_portlist = []
+    resultlist = []
 
-    if system=='Linux':
-        lst=os.popen("ss -tln | awk '{print $4}' | grep -v '^:' | awk -F: '{print $2}' | grep -v '^$'")
-        for i in lst:
-            str=('{"{#PORT}":"'+i+'"}').replace('\n','')
+    if system == 'Linux':
+        ipv4_listen_portlist = list(os.popen(" ss -Htln4 | awk '{print $4}' | awk -F: '{print $2}'    | grep -v '^$' "))
+        ipv6_listen_portlist = list(os.popen(" ss -Htln6 | awk '{print $4}' | awk -F']:' '{print $2}' | grep -v '^$' "))
+
+        for i in set(ipv4_listen_portlist + ipv6_listen_portlist):
+            str = ('{"{#PORT}":"' + i + '"}').replace('\n', '')
             append_flag = 1
             for e in exclude_list:
-                # print e[0], e[1]
                 if int(e[0]) <= int(i) <= int(e[1]):
                     append_flag = 0
-            if append_flag:
-                rlst.append(str)
 
+            if append_flag:
+                resultlist.append(str)
 
     if system=='Windows':
-        lst=os.popen('netstat -an | find /v "[::]" | findstr LISTEN')
+        ipv4_listen_portlist=os.popen('netstat -an | find /v "[::]" | findstr LISTEN')
 
-        for i in lst:
+        for i in ipv4_listen_portlist:
             j=i.split()[1]
             k=j.split(':')[1]
             append_flag=1
@@ -39,19 +41,13 @@ def get_netlisten():
                 if int(e[0]) <= int(k) <= int(e[1]):
                     append_flag=0
             if append_flag:
-                rlst.append('{"{#PORT}":"'+k+'"}')
+                resultlist.append('{"{#PORT}":"'+k+'"}')
 
-    return rlst
+    return resultlist
 
 
 
 if __name__ == '__main__':
 
 
-    print json.dumps({ "data":get_netlisten() }).replace('\\"','"').replace('"{"','{"').replace('"}"','"}')
-    #print json.dumps({"data": get_netlisten()}).replace('\\"', "\"").replace('\"\"', "\"")
-    #print json.dumps( get_netlisten()).replace('\\"',"\"")
-    #print get_netlisten()
-    #print json.dumps({"data": json.JSONDecoder().decode(get_netlisten())})
-
-
+    print(json.dumps({ "data":get_netlisten() }).replace('\\"','"').replace('"{"','{"').replace('"}"','"}'))
